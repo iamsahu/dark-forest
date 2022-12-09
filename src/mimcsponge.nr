@@ -2,9 +2,9 @@
 // log_5(21888242871839275222246405745257275088548364400416034343698204186575808495617) ~= 110
 // => nRounds should be 220
 
-global nInputs = 2;
+// global nInputs = 2;
 global nRounds = 220;
-global nOutputs = 1;
+// global nOutputs = 1;
 
 struct S{
     xL_in: u254,
@@ -13,7 +13,7 @@ struct S{
     xR_out: u254,
 }
 
-fn mimcsponge( ins : S, k : u254) -> [u254; nOutputs]{
+fn mimcsponge( ins : S, k : u254, nOutputs: Field, nInputs: Field) -> [u254; nOutputs]{
     //S = R||C
     let mut s:[S; nInputs + nOutputs - 1] = [S{ xL_in : 0, xR_in : 0 , xL_out : 0, xR_out : 0}; nInputs + nOutputs - 1];
     let mut outs: [u254; nOutputs] = [0; nOutputs];

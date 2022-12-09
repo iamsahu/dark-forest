@@ -1,10 +1,21 @@
 use dep::std;
+mod mimcsponge;
+
+global nInputs = 2;
+
+global nOutputs = 1;
 
 fn main(x : Field, y : pub Field) {
+    let mut outs: [u254; nOutputs] = mimcsponge::mimcsponge(mimcsponge::S{
+        xL_in: 0,
+        xR_in: 0,
+        xL_out: 0,
+        xR_out: 0
+    }, 0, nInputs, nOutputs);
+
     constrain x != y;
 }
 
-mod mimcsponge;
 //--------------------------------------//
 
 // fn random(in: [u254; 3], KEY: u254) -> u254{
