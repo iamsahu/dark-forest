@@ -2,7 +2,6 @@ use dep::std;
 mod mimcsponge;
 
 global nInputs = 2;
-
 global nOutputs = 1;
 
 fn main(x : Field, y : pub Field) {

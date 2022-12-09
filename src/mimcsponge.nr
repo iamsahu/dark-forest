@@ -3,8 +3,7 @@
 // => nRounds should be 220
 
 // global nInputs = 2;
-global nRounds = 220;
-// global nOutputs = 1;
+global nOutputs = 1;
 
 struct S{
     xL_in: u254,
@@ -13,13 +12,14 @@ struct S{
     xR_out: u254,
 }
 
-fn mimcsponge( ins : S, k : u254, nOutputs: Field, nInputs: Field) -> [u254; nOutputs]{
+fn mimcsponge( ins : S, k : u254, nInputs: comptime Field, nRounds: comptime Field) -> [u254; nOutputs]{
     //S = R||C
-    let mut s:[S; nInputs + nOutputs - 1] = [S{ xL_in : 0, xR_in : 0 , xL_out : 0, xR_out : 0}; nInputs + nOutputs - 1];
+    let size: u254 = nInputs + nOutputs - 1;
+    let mut s:[S; size] = [S{ xL_in : 0, xR_in : 0 , xL_out : 0, xR_out : 0}; size];
     let mut outs: [u254; nOutputs] = [0; nOutputs];
 
     for i in 0..nInputs {
-        s[i] = mimcFeistel(s[i].xL_in, s[i].xR_in, k);
+        s[i] = mimcFeistel(s[i].xL_in, s[i].xR_in, k, nRounds);
         if i == 0 {
             s[i].xL_in = ins.xL_in;
             s[i].xR_in = 0;
@@ -32,7 +32,7 @@ fn mimcsponge( ins : S, k : u254, nOutputs: Field, nInputs: Field) -> [u254; nOu
     outs[0] = s[nInputs - 1].xL_out;
 
     for i in 0..(nOutputs - 1) {
-        s[nInputs + i] = mimcFeistel(s[i].xL_in, s[i].xR_in, k);
+        s[nInputs + i] = mimcFeistel(s[i].xL_in, s[i].xR_in, k, nRounds);
         s[nInputs + i].xL_in = s[nInputs + i - 1].xL_out;
         s[nInputs + i].xR_in = s[nInputs + i - 1].xR_out;
         outs[i + 1] = s[nInputs + i].xL_out;
@@ -44,7 +44,8 @@ fn mimcsponge( ins : S, k : u254, nOutputs: Field, nInputs: Field) -> [u254; nOu
 fn mimcFeistel( 
     xL_in : u254,
     xR_in : u254,
-    k : u254) -> S {
+    k : u254,
+    nRounds: comptime Field) -> S {
     let ROUNDS: u254 = 218;
     let c_partial :[u254; ROUNDS] = [
       7120861356467848435263064379192047478074060781135320967663101236819528304084,
@@ -266,47 +267,58 @@ fn mimcFeistel(
       11050822248291117548220126630860474473945266276626263036056336623671308219529,
       2119542016932434047340813757208803962484943912710204325088879681995922344971
     ];
-
+    let NROUNDS: comptime Field = nRounds;
     let mut s:S = S{ xL_in : xL_in, xR_in : xR_in , xL_out : 0, xR_out : 0};
 
     let mut t: u254 = 0;
     let mut c: u254 = 0;
+    let mut t2 : u254 = 0;
+    let mut t4 : u254 = 0;
+    let mut xL : u254 = 0;
+    let mut xR : u254 = 0;
+    let mut xLPrev : u254 = 0;
+    let mut xRPrev : u254 = 0;
 
-    let mut t2 : [u254; nRounds] = [0; nRounds];
-    let mut t4 : [u254; nRounds] = [0; nRounds];
-    let mut xL : [u254; nRounds-1] = [0; nRounds - 1];
-    let mut xR : [u254; nRounds-1] = [0; nRounds - 1];
-
-    for i in 0..nRounds {
-        if ( (i == 0) | (i==nRounds - 1)) {
+    for i in 0..NROUNDS {
+        if ( (i == 0) | (i == (nRounds - 1))) {
             c = 0;
         } else {
             c = c_partial[i - 1];
         }
-        if i==0{
+        if i == 0 {
             t = k + xL_in;
         } else {
-            t = k + xL[i - 1] + c;
+            t = k + xLPrev + c;
         }
-        t2[i] = t * t;
-        t4[i] = t2[i] * t2[i];
+        constrain t2 == t * t;
+        t2 = t * t;
+        constrain t4 == t2 * t2;
+        t4 = t2 * t2;
+
         let j = (nRounds as u254 - 1);
         if (i as u254 < j) {
             let mut aux: u254 = 0;
             if(i == 0){
                 aux = xR_in;
             }else{
-                aux = xR[i - 1];
+                aux = xRPrev;
             }
-            xL[i] = aux + t4[i] * t;
+            constrain xL == aux + t4 * t;
+            xL = aux + t4 * t;
+            xLPrev = xL;
+
             if i == 0 {
-                xR[i] = xL_in;
+                constrain xR == xL_in;
+                xR = xL_in;
+                xRPrev = xL_in;
             } else {
-                xR[i] = xL[i - 1];
+                constrain xR == xLPrev;
+                xR = xLPrev;
+                xRPrev = xLPrev;
             }
         } else {
-            s.xR_out = xR[i - 1] + t4[i] * t;
-            s.xL_out = xL[i - 1];
+            s.xR_out = xRPrev + t4 * t;
+            s.xL_out = xLPrev;
         }
     }
     s
